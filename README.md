@@ -3,6 +3,7 @@ Python modules requirements:
 ```
 pip install box2d
 pip install gym
+pip install cv2
 ```
 
 ## Docs
