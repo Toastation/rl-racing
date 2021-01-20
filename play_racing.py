@@ -13,28 +13,34 @@ action_space    = [
             (-1, 0, 0.2), (0, 0, 0.2), (1, 0, 0.2), # Range        -1~1       0~1   0~1
             (-1, 0,   0), (0, 0,   0), (1, 0,   0)
 ]
+CUMUL_FRAMES = 1
 
 
 def play_model(model_path):
     env = gym.make('CarRacing-v0')
     model = load_model(model_path)
     
+    
     current_state = env.reset()
-    current_state = np.reshape(process_image(current_state), (84, 96, 1))
+    current_state = process_image(current_state)
+    state_stack = [deepcopy(current_state), deepcopy(current_state), deepcopy(current_state)]
     done = False
     #steps = 0
 
     while not done:
         env.render()
-        prediction = model.predict(np.expand_dims(current_state, axis=0))[0]
+        input_stack_state = np.transpose(np.array([state_stack[-3], state_stack[-2], state_stack[-1]]), (1, 2, 0))
+        prediction = model.predict(np.expand_dims(input_stack_state, axis=0))[0]
         action = np.argmax(prediction)
         print(action)
-        next_state, r, done, _ = env.step(action_space[action])
-        next_state = np.reshape(process_image(next_state), (84, 96, 1))
+        for _ in range(CUMUL_FRAMES):
+                next_state, _, done, _ = env.step(action_space[action])
+                if done:
+                    break
+        next_state = process_image(next_state)
+        state_stack.append(next_state)
 
         #if steps > 300 and total_reward < 0:
         #    break
-
-        current_state = next_state
 
 play_model("model/test1")

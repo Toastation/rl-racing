@@ -9,6 +9,7 @@ import random
 from copy import deepcopy
 from cv2 import cv2
 from utils import process_image
+import datetime
 
 action_space    = [
             (-1, 1, 0.2), (0, 1, 0.2), (1, 1, 0.2), #           Action Space Structure
@@ -20,6 +21,8 @@ epsilon = 1.0
 EPSILON_DECAY  = 0.999
 GAMMA = 0.95
 STEP_VERIFICATION = 300
+STACK_SIZE = 3
+CUMUL_FRAMES = 3
 
 
 
@@ -33,7 +36,7 @@ def new_model():
      # Neural Net for Deep-Q learning Model
     model = Sequential()
     #model.add(Conv2D(filters=6, kernel_size=(7, 7), strides=3, activation='relu', input_shape=(96, 96, self.frame_stack_num)))
-    model.add(Conv2D(filters=16, kernel_size=(7, 7), strides=3, activation='relu', input_shape=(84, 96, 1)))
+    model.add(Conv2D(filters=16, kernel_size=(7, 7), strides=3, activation='relu', input_shape=(84, 96, STACK_SIZE)))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Conv2D(filters=32, kernel_size=(4, 4), activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
@@ -53,33 +56,48 @@ def train_model(nb_episodes, model_path=None):
     else:
         model = load_model(model_path)
 
-    global_memory = deque(maxlen=1000)
+    log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+
+    global_memory = deque(maxlen=5000)
 
     for k in range(nb_episodes):
         print(k)
         total_reward = 0
         current_state = env.reset()
-        current_state = np.reshape(process_image(current_state), (84, 96, 1))
-        episode_history = [current_state]
+        current_state = process_image(current_state)
+        state_stack = [deepcopy(current_state), deepcopy(current_state), deepcopy(current_state)]
+        episode_history = []
         done = False
         steps = 0
 
         while not done:
+            input_stack_state = np.transpose(np.array([state_stack[-3], state_stack[-2], state_stack[-1]]), (1, 2, 0))
             if random.random() < epsilon:
                 action = random.choice(range(len(action_space)))
             else:
-                prediction = model.predict(np.expand_dims(current_state, axis=0))[0]
+                prediction = model.predict(np.expand_dims(input_stack_state, axis=0))[0]
                 action = np.argmax(prediction)
-            next_state, r, done, _ = env.step(action_space[action])
-            next_state = np.reshape(process_image(next_state), (84, 96, 1))
-            total_reward += r
-            episode_history.append([deepcopy(current_state), action, r, deepcopy(next_state), done])
+            
+            reward = 0
+            for _ in range(CUMUL_FRAMES):
+                next_state, r, done, _ = env.step(action_space[action])
+                reward += r
+                if done:
+                    break
+
+            next_state = process_image(next_state)
+            state_stack.append(next_state)
+            next_stack_state = np.transpose(np.array([state_stack[-3], state_stack[-2], state_stack[-1]]), (1, 2, 0))
+            total_reward += reward
+            episode_history.append([deepcopy(input_stack_state), action, r, deepcopy(next_stack_state), done])
 
             if steps > 300 and total_reward < 0:
                 break
 
-            current_state = next_state
+            #current_state = next_state
 
+        print(total_reward)
         global_memory.extend(episode_history)
 
         #Create minibatch and train network
@@ -96,7 +114,7 @@ def train_model(nb_episodes, model_path=None):
                     target[a] = r + GAMMA * np.amax(next_state_rewards)
                 states_train.append(s)
                 expected_reward_train.append(target)
-            model.fit(np.array(states_train), np.array(expected_reward_train), epochs=1, verbose=0)
+            model.fit(np.array(states_train), np.array(expected_reward_train), epochs=1, verbose=0, callbacks=[tensorboard_callback])
             epsilon = epsilon if epsilon < 0.1 else epsilon*EPSILON_DECAY
         if k % 5 == 0:
             env.close()
@@ -104,7 +122,7 @@ def train_model(nb_episodes, model_path=None):
 
     model.save(model_path)
 
-train_model(200)
+train_model(50, model_path="model/test1")
 
 
    
