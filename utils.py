@@ -1,4 +1,4 @@
-import cv2
+from cv2 import cv2
 
 # Input: 96x96 colored pixel matrix of the screen (including the UI bar at bottom)
 # Output: cropped normalized grayscale matrix (without the UI bar)

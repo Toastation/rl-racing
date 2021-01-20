@@ -98,6 +98,13 @@ def train_model(nb_episodes, model_path=None):
                 expected_reward_train.append(target)
             model.fit(np.array(states_train), np.array(expected_reward_train), epochs=1, verbose=0)
             epsilon = epsilon if epsilon < 0.1 else epsilon*EPSILON_DECAY
-    #model.save(model_path)
+        if k % 5 == 0:
+            env.close()
+            env = gym.make('CarRacing-v0')
 
-train_model(2)
+    model.save(model_path)
+
+train_model(200)
+
+
+   
