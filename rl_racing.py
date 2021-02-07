@@ -17,7 +17,7 @@ action_space    = [
             (-1, 0, 0.2), (0, 0, 0.2), (1, 0, 0.2), # Range        -1~1       0~1   0~1
             (-1, 0,   0), (0, 0,   0), (1, 0,   0)
 ]
-epsilon = 1.0
+epsilon = 0.10
 EPSILON_DECAY  = 0.999
 GAMMA = 0.95
 STEP_VERIFICATION = 300
@@ -56,8 +56,8 @@ def train_model(nb_episodes, model_path=None):
     else:
         model = load_model(model_path)
 
-    log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+    #log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    #tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
     global_memory = deque(maxlen=5000)
 
@@ -114,7 +114,7 @@ def train_model(nb_episodes, model_path=None):
                     target[a] = r + GAMMA * np.amax(next_state_rewards)
                 states_train.append(s)
                 expected_reward_train.append(target)
-            model.fit(np.array(states_train), np.array(expected_reward_train), epochs=1, verbose=0, callbacks=[tensorboard_callback])
+            model.fit(np.array(states_train), np.array(expected_reward_train), epochs=1, verbose=0)#, callbacks=[tensorboard_callback])
             epsilon = epsilon if epsilon < 0.1 else epsilon*EPSILON_DECAY
         if k % 5 == 0:
             env.close()
@@ -122,7 +122,7 @@ def train_model(nb_episodes, model_path=None):
 
     model.save(model_path)
 
-train_model(50, model_path="model/test1")
+train_model(2000, model_path="model/test1")
 
 
    

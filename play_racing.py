@@ -6,6 +6,8 @@ import random
 from copy import deepcopy
 from cv2 import cv2
 from utils import process_image
+from gym.envs.registration import registry, register, make, spec
+
 
 action_space    = [
             (-1, 1, 0.2), (0, 1, 0.2), (1, 1, 0.2), #           Action Space Structure
@@ -13,11 +15,18 @@ action_space    = [
             (-1, 0, 0.2), (0, 0, 0.2), (1, 0, 0.2), # Range        -1~1       0~1   0~1
             (-1, 0,   0), (0, 0,   0), (1, 0,   0)
 ]
-CUMUL_FRAMES = 1
+CUMUL_FRAMES = 3
+
+register(
+    id='CarRacing-v1',
+    entry_point='gym.envs.box2d:CarRacing',
+    max_episode_steps=2000,
+    reward_threshold=900,
+)
 
 
 def play_model(model_path):
-    env = gym.make('CarRacing-v0')
+    env = gym.make('CarRacing-v1')
     model = load_model(model_path)
     
     
